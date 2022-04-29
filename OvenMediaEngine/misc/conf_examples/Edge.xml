@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Server version="8">
+	<Name>OvenMediaEngine</Name>
+	<!-- Host type (origin/edge) -->
+	<Type>edge</Type>
+	<!-- Specify IP address to bind (* means all IPs) -->
+	<IP>*</IP>
+	<PrivacyProtection>false</PrivacyProtection>
+
+	<!-- 
+	To get the public IP address(mapped address of stun) of the local server. 
+	This is useful when OME cannot obtain a public IP from an interface, such as AWS or docker environment. 
+	If this is successful, you can use ${PublicIP} in your settings.
+	-->
+	<StunServer>stun.l.google.com:19302</StunServer>
+
+	<Modules>
+		<HTTP2>
+			<!-- HTTP2 is under development, disabled by default -->
+			<Enable>false</Enable>
+		</HTTP2>
+
+		<LLHLS>
+			<!-- LLHLS is under development, disabled by default -->
+			<Enable>false</Enable>
+		</LLHLS>
+
+		<!-- P2P works only in WebRTC and is experiment feature -->
+		<P2P>
+			<!-- disabled by default -->
+			<Enable>false</Enable>
+			<MaxClientPeersPerHostPeer>2</MaxClientPeersPerHostPeer>
+		</P2P>
+	</Modules>
+
+	<!-- Settings for the ports to bind -->
+	<Bind>
+		<!-- Enable this configuration if you want to use API Server -->
+		<!--
+		<Managers>
+			<API>
+				<Port>${env:OME_API_PORT:8081}</Port>
+				<WorkerCount>1</WorkerCount>
+			</API>
+		</Managers>
+		-->
+		<Providers>
+			<!-- Pull providers -->
+			<RTSPC>
+				<WorkerCount>1</WorkerCount>
+			</RTSPC>
+			<OVT>
+				<WorkerCount>1</WorkerCount>
+			</OVT>
+		</Providers>
+
+		<Publishers>
+			<HLS>
+				<Port>${env:OME_HLS_STREAM_PORT:8090}</Port>
+				<WorkerCount>1</WorkerCount>
+				<!-- If you want to use TLS, specify the TLS port -->
+				<!-- <TLSPort>8443</TLSPort> -->
+			</HLS>
+			<LLHLS>
+				<!-- Since LLHLS only works over HTTP/2.0, it will not work on Non-Tls Ports. -->
+				<!-- <Port>${env:OME_HLS_STREAM_PORT:8090}</Port> -->
+				<!-- If you want to use TLS, specify the TLS port -->
+				<!-- <TLSPort>443</TLSPort> -->
+				<WorkerCount>1</WorkerCount>
+			</LLHLS>
+			<DASH>
+				<Port>${env:OME_DASH_STREAM_PORT:8090}</Port>
+				<WorkerCount>1</WorkerCount>
+				<!-- If you want to use TLS, specify the TLS port -->
+				<!-- <TLSPort>8443</TLSPort> -->
+			</DASH>
+			<LLDASH>
+				<Port>${env:OME_DASH_STREAM_PORT:8090}</Port>
+				<!-- If you want to use TLS, specify the TLS port -->
+				<!-- LLDASH only works over HTTP/1.1, so when HTTP/2 is enabled, use a different dedicated TLS port from other modules. -->
+				<!-- <TLSPort>444</TLSPort> -->
+				<WorkerCount>1</WorkerCount>
+			</LLDASH>
+			<WebRTC>
+				<Signalling>
+					<Port>${env:OME_SIGNALLING_PORT:3334}</Port>
+					<WorkerCount>1</WorkerCount>
+					<!-- If you want to use TLS, specify the TLS port -->
+					<!-- <TLSPort>5556</TLSPort> -->
+				</Signalling>
+				<IceCandidates>
+					<TcpRelay>${env:OME_TCP_RELAY_ADDRESS:*:3478}</TcpRelay>
+					<TcpForce>false</TcpForce>
+					<TcpRelayWorkerCount>1</TcpRelayWorkerCount>
+					<IceCandidate>${env:OME_ICE_CANDIDATES:*:10000/udp}</IceCandidate>
+				</IceCandidates>
+			</WebRTC>
+		</Publishers>
+	</Bind>
+
+	<!-- P2P works only in WebRTC -->
+	<!--
+	<P2P>
+		<MaxClientPeersPerHostPeer>2</MaxClientPeersPerHostPeer>
+	</P2P>
+	-->
+
+	<VirtualHosts>
+		<!-- You can use wildcard like this to include multiple XMLs -->
+		<VirtualHost include="VHost*.xml" />
+		<VirtualHost>
+			<Name>default</Name>
+			<!--Distribution is a value that can be used when grouping the same vhost distributed across multiple servers. This value is output to the events log, so you can use it to aggregate statistics. -->
+			<Distribution>ovenmediaengine.com</Distribution>
+
+			<!-- Settings for multi ip/domain and TLS -->
+			<Host>
+				<Names>
+					<!-- Host names
+						<Name>stream1.airensoft.com</Name>
+						<Name>stream2.airensoft.com</Name>
+						<Name>*.sub.airensoft.com</Name>
+						<Name>192.168.0.1</Name>
+					-->
+					<Name>*</Name>
+				</Names>
+				<!--
+				<TLS>
+					<CertPath>path/to/file.crt</CertPath>
+					<KeyPath>path/to/file.key</KeyPath>
+					<ChainCertPath>path/to/file.crt</ChainCertPath>
+				</TLS>
+				-->
+			</Host>
+
+			<!-- Refer https://airensoft.gitbook.io/ovenmediaengine/signedpolicy
+
+			<SignedPolicy>
+				<PolicyQueryKeyName>${env:SIGNED_POLICY_POLICY_QUERY_KEY:policy}</PolicyQueryKeyName>
+				<SignatureQueryKeyName>${env:SIGNED_POLICY_SIGNATURE_QUERY_KEY:signature}</SignatureQueryKeyName>
+				<SecretKey>${env:SIGNED_URL_CRYPTO_KEY:aKq#1kj}</SecretKey>
+
+				<Enables>
+					<Providers>rtmp,webrtc,srt</Providers>
+					<Publishers>webrtc,hls,dash,lldash</Publishers>
+				</Enables>
+			</SignedPolicy>
+			-->
+
+			<!-- Settings for ProxyPass (It can specify origin for each path) -->
+			<Origins>
+				<Properties>
+					<NoInputFailoverTimeout>3000</NoInputFailoverTimeout>
+					<UnusedStreamDeletionTimeout>60000</UnusedStreamDeletionTimeout>
+				</Properties>
+				<!--
+					<Origin>
+					<Location>/app/stream</Location>
+					<Pass>
+						<Scheme>ovt</Scheme>
+						<Urls>
+							<Url>origin.com:9000/app/stream_720p</Url>
+						</Urls>
+					</Pass>
+				</Origin>
+				<Origin>
+					<Location>/app/</Location>
+					<Pass>
+						<Scheme>ovt</Scheme>
+						<Urls>
+							<Url>origin.com:9000/app/</Url>
+						</Urls>
+					</Pass>
+				</Origin>
+				-->
+				<Origin>
+					<Location>/</Location>
+					<Pass>
+						<Scheme>ovt</Scheme>
+						<Urls>
+							<Url>${env:DEFAULT_ORIGIN_SERVER:}:${env:DEFAULT_ORIGIN_PORT:9000}/</Url>
+						</Urls>
+						<!-- 
+							Whether to pass the query string to the origin server in the URL the user requested to play (used by some RTSP servers) 
+							default : true
+						-->
+						<ForwardQueryParams>true</ForwardQueryParams>
+					</Pass>
+				</Origin>
+			</Origins>
+
+			<!--
+				Apply the following settings for /app/<stream_name> requests.
+
+				This demonstrates setting <OutputProfiles>/<Providers>/<Pubishers> for a specific application.
+
+				(https://github.com/AirenSoft/OvenMediaEngine/issues/621#issuecomment-1026892776)
+			-->
+			<!--
+			<Applications>
+				<Application>
+					<Name>app</Name>
+					<Type>live</Type>
+					<OutputProfiles>
+						<OutputProfile>
+							<Name>passthrough</Name>
+							<OutputStreamName>${OriginStreamName}</OutputStreamName>
+							<Encodes>
+								<Video>
+									<Bypass>true</Bypass>
+								</Video>
+								<Audio>
+									<Bypass>true</Bypass>
+								</Audio>
+							</Encodes>
+						</OutputProfile>
+					</OutputProfiles>
+					<Providers>
+						<OVT />
+					</Providers>
+					<Publishers>
+						<HLS>
+							<SegmentDuration>2</SegmentDuration>
+							<SegmentCount>3</SegmentCount>
+							<CrossDomains>
+								<Url>*.airensoft.com</Url>
+								<Url>http://*.sub-domain.airensoft.com</Url>
+								<Url>http?://airensoft.*</Url>
+							</CrossDomains>
+						</HLS>
+						<WebRTC />
+					</Publishers>
+				</Application>
+			</Applications>
+			-->
+		</VirtualHost>
+	</VirtualHosts>
+</Server>

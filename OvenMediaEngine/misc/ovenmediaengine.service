@@ -1,0 +1,18 @@
+[Unit]
+Description=OvenMediaEngine
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=/var/run/ovenmediaengine.pid
+WorkingDirectory=/usr/share/ovenmediaengine
+ExecStart=/usr/bin/OvenMediaEngine -d
+Restart=always
+RestartSec=2
+RestartPreventExitStatus=1
+StandardOutput=null
+StandardError=syslog+console
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
